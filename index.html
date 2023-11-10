@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON to Table</title>
+
+    <!-- Include jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- Include Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Include Bootstrap JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js"></script>
+
+    <!-- Include DataTables CSS -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.25/css/jquery.dataTables.min.css">
+
+    <!-- Include DataTables JavaScript -->
+    <script type="text/javascript" src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+
+    <!-- Custom Styles -->
+    <style>
+        body {
+            background-color: #f4edfa; /* Lilac background color */
+            font-family: 'Arial', sans-serif;
+            color: #333;
+        }
+
+        h3 {
+            background-color: #8a65aa; /* Lilac header background color */
+            color: #fff;
+            padding: 20px;
+            margin-top: 0;
+        }
+
+        .container {
+            background-color: #fff; /* White container background color */
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .form-label {
+            color: #8a65aa; /* Lilac label color */
+        }
+
+        .form-control::placeholder {
+            color: #aaa; /* Grayer placeholder text color */
+        }
+
+        .btn-primary {
+            background-color: #8a65aa; /* Lilac button color */
+            border: none;
+        }
+
+        #loadingIndicator {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        #tableContainer {
+            display: none;
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            text-align: center;
+            padding: 10px;
+        }
+
+        .table-bordered thead th {
+            background-color: #8a65aa; /* Lilac header background color */
+            color: #fff;
+            border: none;
+        }
+
+        .table-bordered tbody td {
+            border: none;
+        }
+
+        .note {
+            color: #555; /* Grayer note text color */
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body>
+    <h3 class="mt-4">JSON to Table</h3>
+
+    <div class="container mt-4">
+        <!-- First Form -->
+        <form id="form1" class="mb-4">
+            <label for="input" class="form-label">Input URL:</label>
+            <div class="input-group">
+                <input type="text" id="input" name="input" class="form-control" value="https://capsulegacha.alwaysdata.net/m9/getcsv2json.php" placeholder="URL Anda">
+                <button type="submit" class="btn btn-primary">Submit</button>
+            </div>
+            <p class="note">For the first time user, please click the Submit button twice to make the table wider.</p>
+        </form>
+
+        <!-- Additional Form -->
+        <div id="additionalFormContainer" style="display: none;">
+            <form id="additionalForm">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="id" class="form-label">ID</label>
+                        <input type="text" class="form-control" id="id" placeholder="000">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="F_Name" class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="F_Name" placeholder="First name">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="L_Name" class="form-label">Last Name</label>
+                        <input type="text" class="form-control" id="L_Name" placeholder="Last name">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email" placeholder=".@unair.ac.id">
+                </div>
+                <div class="mb-3">
+                    <label for="email2" class="form-label">Email 2</label>
+                    <input type="email" class="form-control" id="email2" placeholder="undefined.undefined@ftmm.unair.ac.id">
+                </div>
+                <div class="mb-3">
+                    <label for="profesi" class="form-label">Profesi</label>
+                    <input type="text" class="form-control" id="profesi" placeholder="Your job">
+                </div>
+                <button type="button" class="btn btn-primary" id="addDataBtn">Add Data</button>
+            </form>
+        </div>
+    </div>  
+
+    <div id="loadingIndicator" style="display: none;">
+        <img src="loading.gif" alt="Loading..." />
+    </div>
+
+    <div id="tableContainer" style="display: none;">
+        <table id="dataTable" class="table table-striped table-bordered table-hover">
+            <thead>
+                <tr id="tableHeaders"></tr>
+            </thead>
+            <tbody>
+                <!-- Table content will be inserted here -->
+            </tbody>
+        </table>
+    </div>
+    
+    <script>
+        // Wait until the document is ready
+        $(document).ready(function () {
+            var submitted = false; // Flag to track whether the form has been submitted
+
+            document.getElementById("form1").addEventListener("submit", function (e) {
+                e.preventDefault();
+
+                var urlInput = document.getElementById("input").value;
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", urlInput, true);
+
+                // Show loading indicator
+                $('#loadingIndicator').show();
+
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        // Hide loading indicator
+                        $('#loadingIndicator').hide();
+                    }
+
+                    if (xhr.readyState === 4 && xhr.status === 200) {
+                        var data = JSON.parse(xhr.responseText);
+
+                        // Clear the table
+                        if ($.fn.DataTable.isDataTable('#dataTable')) {
+                            $('#dataTable').DataTable().clear().destroy();
+                        }
+
+                        // Create the header row
+                        var tableHeaders = Object.keys(data[0]).map(function (key) {
+                            return '<th>' + key + '</th>';
+                        });
+                        $('#tableHeaders').html(tableHeaders);
+
+                        // Add data to the table
+                        var dataTable = $('#dataTable').DataTable({
+                            data: data,
+                            columns: Object.keys(data[0]).map(function (key) {
+                                return { data: key, title: key };
+                            }),
+                            paging: true,
+                            searching: true,
+                            lengthMenu: [10, 25, 50],
+                            pageLength: 10,
+                        });
+
+                        // Show the table
+                        $('#tableContainer').show();
+
+                        // Show the additional form on the first submit
+                        if (!submitted) {
+                            $('#additionalFormContainer').show();
+                            submitted = true;
+                        }
+
+                        else {
+                            // Handle errors here, e.g., display an error message
+                            console.error('Failed to fetch data. Status: ' + xhr.status);
+                        }
+                    }
+                };
+
+                // Send a GET request to the input URL
+                xhr.send();
+            });
+
+            // Add Data button click event
+            document.getElementById("addDataBtn").addEventListener("click", function () {
+
+                // Show loading indicator
+                $('#loadingIndicator').show();
+
+                // Get data from the additional form
+                var formData = {
+                    id: document.getElementById("id").value,
+                    F_Name: document.getElementById("F_Name").value,
+                    L_Name: document.getElementById("L_Name").value,
+                    email: document.getElementById("email").value,
+                    email2: document.getElementById("email2").value,
+                    profesi: document.getElementById("profesi").value,
+                };
+
+                // Send the data to the PHP file using AJAX
+                $.ajax({
+                    type: "POST",
+                    url: "https://capsulegacha.alwaysdata.net/m9/addmoredata.php", // Adjust the path based on your file structure
+                    data: formData,
+                    success: function (response) {
+                        // Handle success (if needed)
+                        console.log(response);
+
+                        // Reload the JSON data and update the table
+                        $.getJSON("https://capsulegacha.alwaysdata.net/m9/getcsv2json.php", function (data) {
+                            // Clear the table
+                            if ($.fn.DataTable.isDataTable('#dataTable')) {
+                                $('#dataTable').DataTable().clear().destroy();
+                            }
+
+                            // Create the header row
+                            var tableHeaders = Object.keys(data[0]).map(function (key) {
+                                return '<th>' + key + '</th>';
+                            });
+                            $('#tableHeaders').html(tableHeaders);
+
+                            // Add data to the table
+                            var dataTable = $('#dataTable').DataTable({
+                                data: data,
+                                columns: Object.keys(data[0]).map(function (key) {
+                                    return { data: key, title: key };
+                                }),
+                                paging: true,
+                                searching: true,
+                                lengthMenu: [10, 25, 50],
+                                pageLength: 10,
+                            });
+
+                            // Hide loading indicator
+                            $('#loadingIndicator').hide();
+
+                            // Show the table
+                            $('#tableContainer').show();
+
+                            // Clear input fields in the additional form
+                            $('#id').val('');
+                            $('#F_Name').val('');
+                            $('#L_Name').val('');
+                            $('#email').val('');
+                            $('#email2').val('');
+                            $('#profesi').val('');
+                        });
+                    },
+                    error: function (error) {
+                        // Handle error (if needed)
+                        console.error(error);
+                    }
+                });
+            });
+        });
+
+    </script>
+</body>
+</html>
